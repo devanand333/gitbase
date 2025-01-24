@@ -1,0 +1,105 @@
+import { Alert, StyleSheet, View, SafeAreaView } from 'react-native';
+import { WebView } from 'react-native-webview';
+import React, { useEffect, useState } from 'react';
+import messaging from '@react-native-firebase/messaging';
+
+const App = () => {
+  const [url, setUrl] = useState('https://cardekhen.com/admin_panel/booking/'); // Default URL
+
+  // Request notification permissions
+  const requestUserPermission = async () => {
+    const authStatus = await messaging().requestPermission();
+    const enabled =
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+    if (enabled) {
+      console.log('Authorization status:', authStatus);
+      getFCMToken();
+    } else {
+      console.log('User denied notification permissions');
+    }
+  };
+
+  // Get FCM Token
+  const getFCMToken = async () => {
+    try {
+      const token = await messaging().getToken();
+      if (token) {
+        console.log('FCM Token:', token);
+      } else {
+        console.log('Failed to get FCM token');
+      }
+    } catch (error) {
+      console.error('Error getting FCM token:', error);
+    }
+  };
+
+  // Handle foreground notifications
+  const handleForegroundNotifications = () => {
+    const unsubscribe = messaging().onMessage(async (remoteMessage) => {
+      console.log('Foreground notification:', remoteMessage.data?.url);
+      if (remoteMessage.data?.url) {
+        setUrl(remoteMessage.data.url); // Update the URL from the notification
+        Alert.alert('New Notification', remoteMessage.notification?.title || 'No title');
+      }
+    });
+
+    return unsubscribe;
+  };
+
+  // Handle background notifications
+  const handleBackgroundNotifications = () => {
+    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+      console.log('Background notification:', remoteMessage.data?.url);
+      if (remoteMessage.data?.url) {
+        setUrl(remoteMessage.data.url); // Update the URL from the notification
+      }
+    });
+  };
+
+  useEffect(() => {
+    // Request permission on app load
+    requestUserPermission();
+
+    // Listen for foreground notifications
+    const unsubscribeForeground = handleForegroundNotifications();
+
+    // Handle background notifications
+    handleBackgroundNotifications();
+
+    // Cleanup on unmount
+    return () => {
+      unsubscribeForeground();
+    };
+  }, []);
+
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <WebView 
+        source={{ uri: url }}  // Open the URL from notification or default URL
+        style={{ marginTop: 20 }}  // Adjust styles if necessary
+      />
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
+
+export default App;
+
+
+
+
+
+
+
+
+
+
+
+/**/
